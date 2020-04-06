@@ -6,6 +6,8 @@ extern crate specs_derive;
 
 mod components;
 mod map;
+mod room;
+
 use crate::components::*;
 use crate::map::*;
 
@@ -161,12 +163,17 @@ fn main() {
     gs.ecs.register::<Drunkard>();
 
     // Add map resource
-    gs.ecs.insert(Map::new(80, 50));
+    let map = Map::new(CONSOLE_WIDTH, CONSOLE_HEIGHT);
+    let player_pos = map.rooms[0].center();
+    gs.ecs.insert(map);
 
     // Create player entity
     gs.ecs
         .create_entity()
-        .with(Position { x: 40, y: 25 })
+        .with(Position {
+            x: player_pos.0,
+            y: player_pos.1,
+        })
         .with(Renderable {
             glyph: to_cp437('@'),
             fg: RGB::named(YELLOW),

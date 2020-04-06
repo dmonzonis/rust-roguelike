@@ -1,5 +1,8 @@
 use bracket_lib::prelude::*;
 
+use super::room::Room;
+use std::cmp::{max, min};
+
 #[derive(PartialEq, Copy, Clone)]
 pub enum TileType {
     Wall,
@@ -8,6 +11,7 @@ pub enum TileType {
 
 pub struct Map {
     pub tiles: Vec<TileType>,
+    pub rooms: Vec<Room>,
     pub width: i32,
     pub height: i32,
 }
@@ -15,38 +19,78 @@ pub struct Map {
 impl Map {
     pub fn new(width: i32, height: i32) -> Self {
         let mut map = Self {
-            tiles: vec![TileType::Floor; (width * height) as usize],
+            tiles: vec![TileType::Wall; (width * height) as usize],
+            rooms: Vec::new(),
             width,
             height,
         };
 
-        // Make boundaries
-        for x in 0..width {
-            let mut idx = map.xy_idx(x, 0);
-            map.tiles[idx] = TileType::Wall;
-            idx = map.xy_idx(x, height - 1);
-            map.tiles[idx] = TileType::Wall;
-        }
-        for y in 0..height {
-            let mut idx = map.xy_idx(0, y);
-            map.tiles[idx] = TileType::Wall;
-            idx = map.xy_idx(width - 1, y);
-            map.tiles[idx] = TileType::Wall;
-        }
+        let mut rooms: Vec<Room> = Vec::new();
+        const MAX_ROOMS: i32 = 12;
+        const MIN_SIZE: i32 = 6;
+        const MAX_SIZE: i32 = 12;
 
-        // Randomly add some wall tiles
         let mut rng = RandomNumberGenerator::new();
 
-        for _i in 0..200 {
-            let x = rng.roll_dice(1, width - 1);
-            let y = rng.roll_dice(1, height - 1);
-            let idx = map.xy_idx(x, y);
-            if idx != map.xy_idx(40, 25) {
-                // We are placing the player here
-                map.tiles[idx] = TileType::Wall;
+        for _ in 0..MAX_ROOMS {
+            let width = rng.range(MIN_SIZE, MAX_SIZE);
+            let height = rng.range(MIN_SIZE, MAX_SIZE);
+            let x = rng.range(0, map.width - width - 1);
+            let y = rng.range(0, map.height - height - 1);
+            let room = Room::new(x, y, width, height);
+            let mut valid = true;
+            for other_room in rooms.iter() {
+                if room.intersects(other_room) {
+                    valid = false;
+                    break;
+                }
+            }
+            if valid {
+                map.carve_room(&room);
+                // Connect to the previous room
+                if !rooms.is_empty() {
+                    let (new_x, new_y) = room.center();
+                    let (prev_x, prev_y) = rooms.last().unwrap().center();
+                    if rng.range(0, 1) == 1 {
+                        map.carve_corridor_horizontal(prev_x, new_x, prev_y);
+                        map.carve_corridor_vertical(prev_y, new_y, new_x);
+                    } else {
+                        map.carve_corridor_vertical(prev_y, new_y, prev_x);
+                        map.carve_corridor_horizontal(prev_x, new_x, new_y);
+                    }
+                }
+
+                rooms.push(room);
             }
         }
+
+        map.rooms = rooms;
         map
+    }
+
+    pub fn carve_room(&mut self, room: &Room) {
+        for y in room.y0..=room.y1 {
+            for x in room.x0..=room.x1 {
+                let idx = self.xy_idx(x, y);
+                self.tiles[idx] = TileType::Floor;
+            }
+        }
+    }
+
+    // Carves a corridor from x0 to x1 (inclusive) at row y
+    pub fn carve_corridor_horizontal(&mut self, x0: i32, x1: i32, y: i32) {
+        for x in min(x0, x1)..=max(x0, x1) {
+            let idx = self.xy_idx(x, y);
+            self.tiles[idx] = TileType::Floor;
+        }
+    }
+
+    // Carves a corridor from y0 to y1 (inclusive) at column x
+    pub fn carve_corridor_vertical(&mut self, y0: i32, y1: i32, x: i32) {
+        for y in min(y0, y1)..=max(y0, y1) {
+            let idx = self.xy_idx(x, y);
+            self.tiles[idx] = TileType::Floor;
+        }
     }
 
     pub fn xy_idx(&self, x: i32, y: i32) -> usize {
