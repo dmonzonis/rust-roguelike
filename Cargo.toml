@@ -1,0 +1,11 @@
+[package]
+name = "roguelike-rust-test"
+version = "0.1.0"
+authors = ["dmonzonis <dmonzonis@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+bracket-lib = "0.7"
+specs = "0.16"
+specs-derive = "0.4"
+serde = "1.0"
