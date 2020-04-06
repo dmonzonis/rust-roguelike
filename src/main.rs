@@ -1,6 +1,5 @@
 use bracket_lib::prelude::*;
 use specs::prelude::*;
-use std::cmp::{max, min};
 
 #[macro_use]
 extern crate specs_derive;
@@ -9,6 +8,10 @@ mod components;
 mod map;
 use crate::components::*;
 use crate::map::*;
+
+const CONSOLE_WIDTH: i32 = 80;
+const CONSOLE_HEIGHT: i32 = 50;
+const TILE_SIZE: i32 = 16;
 
 // Systems
 
@@ -136,9 +139,17 @@ impl GameState for State {
     }
 }
 
+embedded_resource!(TILE_FONT, "../res/terminal16x16.png");
+
 fn main() {
-    let context = BTermBuilder::simple80x50()
+    link_resource!(TILE_FONT, "resources/terminal16x16.png");
+
+    let context = BTermBuilder::new()
+        .with_dimensions(CONSOLE_WIDTH, CONSOLE_HEIGHT)
+        .with_tile_dimensions(TILE_SIZE, TILE_SIZE)
         .with_title("Roguelike Test")
+        .with_font("terminal16x16.png", TILE_SIZE, TILE_SIZE)
+        .with_simple_console(CONSOLE_WIDTH, CONSOLE_HEIGHT, "terminal16x16.png")
         .build();
     let mut gs = State { ecs: World::new() };
 
