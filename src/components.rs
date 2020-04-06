@@ -21,3 +21,10 @@ pub struct Player {}
 
 #[derive(Component)]
 pub struct Drunkard {}
+
+/// Component for entities that can see things following a FOV algorithm
+#[derive(Component)]
+pub struct Vision {
+    pub visible: Vec<Point>,
+    pub range: i32,
+}

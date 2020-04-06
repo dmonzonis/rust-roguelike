@@ -7,9 +7,11 @@ extern crate specs_derive;
 mod components;
 mod map;
 mod room;
+mod visibility_system;
 
 use crate::components::*;
-use crate::map::*;
+use crate::map::{Map, TileType};
+use crate::visibility_system::VisibilitySystem;
 
 const CONSOLE_WIDTH: i32 = 80;
 const CONSOLE_HEIGHT: i32 = 50;
@@ -88,15 +90,33 @@ fn player_input(ecs: &mut World, ctx: &mut BTerm) -> bool {
     }
 }
 
-fn draw_map(map: &Map, ctx: &mut BTerm) {
-    for (idx, tile) in map.tiles.iter().enumerate() {
-        let (x, y) = map.idx_xy(idx);
-        match tile {
-            TileType::Floor => {
-                ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('.'));
-            }
-            TileType::Wall => {
-                ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('#'));
+fn draw_map(ecs: &World, ctx: &mut BTerm) {
+    let visions = ecs.read_storage::<Vision>();
+    let players = ecs.read_storage::<Player>();
+    let map = ecs.fetch::<Map>();
+
+    for (_player, vision) in (&players, &visions).join() {
+        for (idx, tile) in map.tiles.iter().enumerate() {
+            let (x, y) = map.idx_xy(idx);
+            let point = Point::new(x, y);
+            if vision.visible.contains(&point) {
+                match tile {
+                    TileType::Floor => {
+                        ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('.'));
+                    }
+                    TileType::Wall => {
+                        ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('#'));
+                    }
+                }
+            } else if map.explored[idx] {
+                match tile {
+                    TileType::Floor => {
+                        ctx.set(x, y, RGB::named(DARK_BLUE), RGB::named(BLACK), to_cp437('.'));
+                    }
+                    TileType::Wall => {
+                        ctx.set(x, y, RGB::named(DARK_BLUE), RGB::named(BLACK), to_cp437('#'));
+                    }
+                }
             }
         }
     }
@@ -110,6 +130,8 @@ struct State {
 
 impl State {
     fn run_systems(&mut self) {
+        let mut visibility_system = VisibilitySystem {};
+        visibility_system.run_now(&self.ecs);
         let mut drunkard_system = DrunkardSystem {};
         drunkard_system.run_now(&self.ecs);
         // Apply now all changes to the ECS that may be queued from running the systems
@@ -129,8 +151,7 @@ impl GameState for State {
         }
 
         // Render stuff
-        let map = self.ecs.fetch::<Map>();
-        draw_map(&map, ctx);
+        draw_map(&self.ecs, ctx);
 
         let positions = self.ecs.read_storage::<Position>();
         let renderables = self.ecs.read_storage::<Renderable>();
@@ -161,6 +182,7 @@ fn main() {
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<Drunkard>();
+    gs.ecs.register::<Vision>();
 
     // Add map resource
     let map = Map::new(CONSOLE_WIDTH, CONSOLE_HEIGHT);
@@ -180,6 +202,10 @@ fn main() {
             bg: RGB::named(BLACK),
         })
         .with(Player {})
+        .with(Vision {
+            visible: Vec::new(),
+            range: 8,
+        })
         .build();
 
     // Create some drunkards

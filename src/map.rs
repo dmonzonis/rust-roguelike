@@ -14,15 +14,18 @@ pub struct Map {
     pub rooms: Vec<Room>,
     pub width: i32,
     pub height: i32,
+    pub explored: Vec<bool>,
 }
 
 impl Map {
     pub fn new(width: i32, height: i32) -> Self {
+        let total_size = (width * height) as usize;
         let mut map = Self {
-            tiles: vec![TileType::Wall; (width * height) as usize],
+            tiles: vec![TileType::Wall; total_size],
             rooms: Vec::new(),
             width,
             height,
+            explored: vec![false; total_size]
         };
 
         let mut rooms: Vec<Room> = Vec::new();
@@ -101,5 +104,18 @@ impl Map {
         let x = idx as i32 % self.width;
         let y = idx as i32 / self.width;
         (x, y)
+    }
+}
+
+// Implement traits for FOV and pathfinding algorithms to work
+impl Algorithm2D for Map {
+    fn dimensions(&self) -> Point {
+        Point::new(self.width, self.height)
+    }
+}
+
+impl BaseMap for Map {
+    fn is_opaque(&self, idx: usize) -> bool {
+        self.tiles[idx] == TileType::Wall
     }
 }
