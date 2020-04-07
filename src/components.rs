@@ -102,3 +102,12 @@ pub struct Monster {}
 /// Whether this entity blocks other entities from occupying the same tile.
 #[derive(Component)]
 pub struct Blocking {}
+
+/// Basic struct for entities that can fight and die
+#[derive(Component)]
+pub struct Fighter {
+    pub hp: i32,
+    pub max_hp: i32,
+    pub attack: i32,
+    pub defense: i32,
+}

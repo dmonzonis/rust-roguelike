@@ -1,6 +1,6 @@
-use bracket_lib::prelude::*;
-
 use super::room::Room;
+use bracket_lib::prelude::*;
+use specs::prelude::*;
 use std::cmp::{max, min};
 
 #[derive(PartialEq, Copy, Clone)]
@@ -28,6 +28,7 @@ pub struct Map {
     pub explored: Vec<bool>,
     pub visible: Vec<bool>,
     pub blocked: Vec<bool>,
+    pub tile_entities: Vec<Vec<Entity>>,
 }
 
 impl Map {
@@ -41,6 +42,7 @@ impl Map {
             explored: vec![false; total_size],
             visible: vec![false; total_size],
             blocked: vec![false; total_size],
+            tile_entities: vec![Vec::new(); total_size],
         };
 
         let mut rooms: Vec<Room> = Vec::new();
@@ -115,6 +117,12 @@ impl Map {
     pub fn compute_blocked(&mut self) {
         for (idx, tile) in self.tiles.iter().enumerate() {
             self.blocked[idx] = !tile.is_walkable();
+        }
+    }
+
+    pub fn clear_entities(&mut self) {
+        for entities in self.tile_entities.iter_mut() {
+            entities.clear();
         }
     }
 

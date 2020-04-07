@@ -1,21 +1,31 @@
+use crate::{Blocking, Map, Position};
 use specs::prelude::*;
-use crate::{Map, Position, Blocking};
 
 pub struct MapManagementSystem {}
 
-/// Update the map with info about blocking entities
 impl<'a> System<'a> for MapManagementSystem {
     type SystemData = (
         WriteExpect<'a, Map>,
         ReadStorage<'a, Position>,
-        ReadStorage<'a, Blocking>
+        ReadStorage<'a, Blocking>,
+        Entities<'a>,
     );
 
-    fn run(&mut self, (mut map, pos, block): Self::SystemData) {
+    fn run(&mut self, (mut map, pos, block, entities): Self::SystemData) {
         map.compute_blocked();
-        for (pos, _block) in (&pos, &block).join() {
+        map.clear_entities();
+
+        // TODO: Also update blocked tiles when any blocking entity moves, not just once per tick, as
+        // many entities move in a tick and use this data
+        for (pos, ent) in (&pos, &entities).join() {
             let idx = map.xy_idx(pos.x, pos.y);
-            map.blocked[idx] = true;
+
+            // If the entity has Blocking, update the map
+            if let Some(_) = block.get(ent) {
+                map.blocked[idx] = true;
+            }
+
+            map.tile_entities[idx].push(ent);
         }
     }
 }
