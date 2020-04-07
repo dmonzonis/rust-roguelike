@@ -15,7 +15,7 @@ impl TileType {
         // TODO: Move this data to a JSON config file and load from there
         match self {
             TileType::Wall => false,
-            TileType::Floor => true
+            TileType::Floor => true,
         }
     }
 }
@@ -27,6 +27,7 @@ pub struct Map {
     pub height: i32,
     pub explored: Vec<bool>,
     pub visible: Vec<bool>,
+    pub blocked: Vec<bool>,
 }
 
 impl Map {
@@ -38,7 +39,8 @@ impl Map {
             width,
             height,
             explored: vec![false; total_size],
-            visible: vec![false; total_size]
+            visible: vec![false; total_size],
+            blocked: vec![false; total_size],
         };
 
         let mut rooms: Vec<Room> = Vec::new();
@@ -93,7 +95,7 @@ impl Map {
         }
     }
 
-    // Carves a corridor from x0 to x1 (inclusive) at row y
+    /// Carves a corridor from x0 to x1 (inclusive) at row y
     pub fn carve_corridor_horizontal(&mut self, x0: i32, x1: i32, y: i32) {
         for x in min(x0, x1)..=max(x0, x1) {
             let idx = self.xy_idx(x, y);
@@ -101,11 +103,18 @@ impl Map {
         }
     }
 
-    // Carves a corridor from y0 to y1 (inclusive) at column x
+    /// Carves a corridor from y0 to y1 (inclusive) at column x
     pub fn carve_corridor_vertical(&mut self, y0: i32, y1: i32, x: i32) {
         for y in min(y0, y1)..=max(y0, y1) {
             let idx = self.xy_idx(x, y);
             self.tiles[idx] = TileType::Floor;
+        }
+    }
+
+    /// Computes the blocked array using the tile composition. Doesn't take into account blocking entities.
+    pub fn compute_blocked(&mut self) {
+        for (idx, tile) in self.tiles.iter().enumerate() {
+            self.blocked[idx] = !tile.is_walkable();
         }
     }
 
@@ -146,11 +155,17 @@ impl BaseMap for Map {
         for dir in directions.iter() {
             let new_pos = origin + *dir;
             let new_pos_idx = self.point2d_to_index(new_pos);
-            if self.in_bounds(new_pos) && self.tiles[new_pos_idx].is_walkable() {
+            if self.in_bounds(new_pos) && !self.blocked[new_pos_idx] {
                 // For now, all tiles have cost 1
                 exits.push((new_pos_idx, 1.0));
             }
         }
         exits
+    }
+
+    fn get_pathing_distance(&self, idx1: usize, idx2: usize) -> f32 {
+        let point1 = self.index_to_point2d(idx1);
+        let point2 = self.index_to_point2d(idx2);
+        DistanceAlg::Pythagoras.distance2d(point1, point2)
     }
 }

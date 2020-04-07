@@ -6,13 +6,15 @@ extern crate specs_derive;
 
 mod components;
 mod map;
+mod map_management_system;
 mod monster_ai;
 mod render;
 mod room;
 mod visibility_system;
 
 use crate::components::*;
-use crate::map::{Map, TileType};
+use crate::map::Map;
+use crate::map_management_system::MapManagementSystem;
 use crate::monster_ai::MonsterAISystem;
 use crate::render::{draw_entities, draw_map};
 use crate::visibility_system::VisibilitySystem;
@@ -34,9 +36,7 @@ fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> TurnState {
     for (pos, _player) in (&mut positions, &players).join() {
         let new_pos = *pos + Position::new(dx, dy);
         let new_pos_idx = map.xy_idx(new_pos.x, new_pos.y);
-        if map.in_bounds(Point::new(new_pos.x, new_pos.y))
-            && map.tiles[new_pos_idx] != TileType::Wall
-        {
+        if map.in_bounds(Point::new(new_pos.x, new_pos.y)) && !map.blocked[new_pos_idx] {
             *pos = new_pos;
             // Also update the resource
             *player_pos_res = new_pos;
@@ -93,6 +93,7 @@ struct State {
 impl State {
     fn run_systems(&mut self) {
         VisibilitySystem {}.run_now(&self.ecs);
+        MapManagementSystem {}.run_now(&self.ecs);
         MonsterAISystem {}.run_now(&self.ecs);
         // Apply now all changes to the ECS that may be queued from running the systems
         self.ecs.maintain();
@@ -138,6 +139,7 @@ fn main() {
     gs.ecs.register::<Player>();
     gs.ecs.register::<Vision>();
     gs.ecs.register::<Monster>();
+    gs.ecs.register::<Blocking>();
 
     // Add ECS resources: map, and player position
     let map = Map::new(CONSOLE_WIDTH, CONSOLE_HEIGHT);
@@ -190,6 +192,7 @@ fn main() {
                 recompute: true,
             })
             .with(Monster {})
+            .with(Blocking {})
             .build();
     }
 

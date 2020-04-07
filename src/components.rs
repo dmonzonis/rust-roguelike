@@ -69,11 +69,13 @@ impl ops::Mul<Position> for Position {
     }
 }
 
+/// Name of the entity
 #[derive(Component)]
 pub struct Name {
     pub name: String,
 }
 
+/// Entities that should be rendered to the screen
 #[derive(Component)]
 pub struct Renderable {
     pub glyph: u8,
@@ -81,10 +83,11 @@ pub struct Renderable {
     pub bg: RGB,
 }
 
+/// Component that identifies the player character
 #[derive(Component)]
 pub struct Player {}
 
-/// Component for entities that can see things following a FOV algorithm
+/// Component for entities that can see things following a FOV algorithm.
 #[derive(Component)]
 pub struct Vision {
     pub visible: Vec<Position>,
@@ -92,5 +95,10 @@ pub struct Vision {
     pub recompute: bool,
 }
 
+/// Is controlled by monster AI (MonsterAISystem), that chases and attacks the player.
 #[derive(Component)]
 pub struct Monster {}
+
+/// Whether this entity blocks other entities from occupying the same tile.
+#[derive(Component)]
+pub struct Blocking {}

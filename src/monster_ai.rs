@@ -11,24 +11,35 @@ impl<'a> System<'a> for MonsterAISystem {
         ReadExpect<'a, Map>,
         ReadExpect<'a, Position>, // Player position
         ReadStorage<'a, Monster>,
+        ReadStorage<'a, Name>,
         WriteStorage<'a, Position>,
         WriteStorage<'a, Vision>,
     );
 
-    fn run(&mut self, (map, player_pos, monster, mut pos, mut vision): Self::SystemData) {
+    fn run(&mut self, (map, player_pos, monster, name, mut pos, mut vision): Self::SystemData) {
         let mut rng = RandomNumberGenerator::new();
-        for (_monster, pos, vision) in (&monster, &mut pos, &mut vision).join() {
+        for (_monster, name, pos, vision) in (&monster, &name, &mut pos, &mut vision).join() {
             // If the player is visible, chase it or attack if in range
             if vision.visible.contains(&*player_pos) {
-                let path = a_star_search(
-                    map.xy_idx(pos.x, pos.y) as i32,
-                    map.xy_idx(player_pos.x, player_pos.y) as i32,
-                    &*map,
+                let distance = DistanceAlg::Pythagoras.distance2d(
+                    Point::new(pos.x, pos.y),
+                    Point::new(player_pos.x, player_pos.y),
                 );
-                if path.success && path.steps.len() > 1 {
-                    // TODO: encapsulate actual movement in another function
-                    *pos = Position::from(map.idx_xy(path.steps[1]));
-                    vision.recompute = true;
+                if distance < 1.5 {
+                    // TODO: Attack!
+                    console::log(format!("{} spits at you.", name.name));
+                } else {
+                    // Chase player
+                    let path = a_star_search(
+                        map.xy_idx(pos.x, pos.y) as i32,
+                        map.xy_idx(player_pos.x, player_pos.y) as i32,
+                        &*map,
+                    );
+                    if path.success && path.steps.len() > 1 {
+                        // TODO: encapsulate actual movement in another function
+                        *pos = Position::from(map.idx_xy(path.steps[1]));
+                        vision.recompute = true;
+                    }
                 }
             } else {
                 // If the player is not visible, pick a random available direction and move in that direction
