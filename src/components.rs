@@ -19,9 +19,6 @@ pub struct Renderable {
 #[derive(Component)]
 pub struct Player {}
 
-#[derive(Component)]
-pub struct Drunkard {}
-
 /// Component for entities that can see things following a FOV algorithm
 #[derive(Component)]
 pub struct Vision {
@@ -29,3 +26,6 @@ pub struct Vision {
     pub range: i32,
     pub recompute: bool,
 }
+
+#[derive(Component)]
+pub struct Monster {}

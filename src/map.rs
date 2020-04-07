@@ -9,6 +9,17 @@ pub enum TileType {
     Floor,
 }
 
+impl TileType {
+    pub fn is_walkable(&self) -> bool {
+        // To complete as more tile types are added
+        // TODO: Move this data to a JSON config file and load from there
+        match self {
+            TileType::Wall => false,
+            TileType::Floor => true
+        }
+    }
+}
+
 pub struct Map {
     pub tiles: Vec<TileType>,
     pub rooms: Vec<Room>,
@@ -109,7 +120,7 @@ impl Map {
     }
 }
 
-// Implement traits for FOV and pathfinding algorithms to work
+// Implement traits for FOV and pathfinding algorithms to work properly
 impl Algorithm2D for Map {
     fn dimensions(&self) -> Point {
         Point::new(self.width, self.height)
@@ -119,5 +130,27 @@ impl Algorithm2D for Map {
 impl BaseMap for Map {
     fn is_opaque(&self, idx: usize) -> bool {
         self.tiles[idx] == TileType::Wall
+    }
+
+    // From a position given by idx, return the positions an entity can move to, and the cost to move
+    // to that tile from the origin
+    fn get_available_exits(&self, origin: usize) -> Vec<(usize, f32)> {
+        let origin = self.index_to_point2d(origin);
+        let mut exits: Vec<(usize, f32)> = Vec::new();
+        let directions = [
+            Point { x: 1, y: 0 },
+            Point { x: -1, y: 0 },
+            Point { x: 0, y: 1 },
+            Point { x: 0, y: -1 },
+        ];
+        for dir in directions.iter() {
+            let new_pos = origin + *dir;
+            let new_pos_idx = self.point2d_to_index(new_pos);
+            if self.in_bounds(new_pos) && self.tiles[new_pos_idx].is_walkable() {
+                // For now, all tiles have cost 1
+                exits.push((new_pos_idx, 1.0));
+            }
+        }
+        exits
     }
 }

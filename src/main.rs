@@ -5,15 +5,15 @@ use specs::prelude::*;
 extern crate specs_derive;
 
 mod components;
-mod drunkard_system;
 mod map;
+mod monster_ai;
 mod render;
 mod room;
 mod visibility_system;
 
 use crate::components::*;
-use crate::drunkard_system::DrunkardSystem;
 use crate::map::{Map, TileType};
+use crate::monster_ai::MonsterAISystem;
 use crate::render::{draw_entities, draw_map};
 use crate::visibility_system::VisibilitySystem;
 
@@ -35,8 +35,8 @@ fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> bool {
             y: pos.y + dy,
         };
         let new_pos_idx = map.xy_idx(new_pos.x, new_pos.y);
-        if map.tiles[new_pos_idx] != TileType::Wall
-            && map.in_bounds(Point::new(new_pos.x, new_pos.y))
+        if map.in_bounds(Point::new(new_pos.x, new_pos.y))
+            && map.tiles[new_pos_idx] != TileType::Wall
         {
             *pos = new_pos;
             success = true;
@@ -77,7 +77,7 @@ struct State {
 impl State {
     fn run_systems(&mut self) {
         VisibilitySystem {}.run_now(&self.ecs);
-        DrunkardSystem {}.run_now(&self.ecs);
+        MonsterAISystem {}.run_now(&self.ecs);
         // Apply now all changes to the ECS that may be queued from running the systems
         self.ecs.maintain();
     }
@@ -119,8 +119,8 @@ fn main() {
     gs.ecs.register::<Position>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Player>();
-    gs.ecs.register::<Drunkard>();
     gs.ecs.register::<Vision>();
+    gs.ecs.register::<Monster>();
 
     // Add map resource
     let map = Map::new(CONSOLE_WIDTH, CONSOLE_HEIGHT);
@@ -147,7 +147,7 @@ fn main() {
         })
         .build();
 
-    // Create some drunkards in rooms other than the first one (where the player spawns)
+    // Create some monsters in rooms other than the first one (where the player spawns)
     let rooms;
     {
         let map = gs.ecs.fetch::<Map>();
@@ -159,11 +159,11 @@ fn main() {
             .create_entity()
             .with(Position { x: pos.0, y: pos.1 })
             .with(Renderable {
-                glyph: to_cp437('D'),
-                fg: RGB::named(DARK_GREEN),
+                glyph: to_cp437('o'),
+                fg: RGB::named(GREEN),
                 bg: RGB::named(BLACK),
             })
-            .with(Drunkard {})
+            .with(Monster {})
             .build();
     }
 
