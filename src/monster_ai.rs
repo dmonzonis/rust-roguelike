@@ -24,7 +24,7 @@ impl<'a> System<'a> for MonsterAISystem {
             let new_pos = rng.random_slice_entry(&available_exits);
             if let Some(new_pos) = new_pos {
                 let (x, y) = map.idx_xy(new_pos.0);
-                *pos = Position { x, y };
+                *pos = Position::new(x, y);
             }
         }
     }

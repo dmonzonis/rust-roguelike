@@ -30,16 +30,16 @@ fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> TurnState {
     let map = ecs.fetch::<Map>();
     let mut positions = ecs.write_storage::<Position>();
     let players = ecs.write_storage::<Player>();
+    let mut player_pos_res = ecs.write_resource::<Position>();
     for (pos, _player) in (&mut positions, &players).join() {
-        let new_pos = Position {
-            x: pos.x + dx,
-            y: pos.y + dy,
-        };
+        let new_pos = *pos + Position::new(dx, dy);
         let new_pos_idx = map.xy_idx(new_pos.x, new_pos.y);
         if map.in_bounds(Point::new(new_pos.x, new_pos.y))
             && map.tiles[new_pos_idx] != TileType::Wall
         {
             *pos = new_pos;
+            // Also update the resource
+            *player_pos_res = new_pos;
             success = true;
         }
     }
@@ -138,18 +138,16 @@ fn main() {
     gs.ecs.register::<Vision>();
     gs.ecs.register::<Monster>();
 
-    // Add map resource
+    // Add ECS resources: map, and player position
     let map = Map::new(CONSOLE_WIDTH, CONSOLE_HEIGHT);
-    let player_pos = map.rooms[0].center();
+    let player_pos = Position::from(map.rooms[0].center());
     gs.ecs.insert(map);
+    gs.ecs.insert(player_pos);
 
     // Create player entity
     gs.ecs
         .create_entity()
-        .with(Position {
-            x: player_pos.0,
-            y: player_pos.1,
-        })
+        .with(player_pos)
         .with(Renderable {
             glyph: to_cp437('@'),
             fg: RGB::named(YELLOW),
@@ -170,10 +168,10 @@ fn main() {
         rooms = map.rooms.clone();
     }
     for room in rooms.iter().skip(1) {
-        let pos = room.center();
+        let pos = Position::from(room.center());
         gs.ecs
             .create_entity()
-            .with(Position { x: pos.0, y: pos.1 })
+            .with(pos)
             .with(Renderable {
                 glyph: to_cp437('o'),
                 fg: RGB::named(GREEN),
