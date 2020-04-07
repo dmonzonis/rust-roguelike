@@ -61,6 +61,7 @@ fn player_input(ecs: &mut World, ctx: &mut BTerm) -> TurnState {
     match ctx.key {
         None => TurnState::Paused, // No key is being pressed
         Some(key) => match key {
+            // Orthogonal movement
             VirtualKeyCode::Left | VirtualKeyCode::Numpad4 | VirtualKeyCode::H => {
                 try_move_player(-1, 0, ecs)
             }
@@ -73,6 +74,11 @@ fn player_input(ecs: &mut World, ctx: &mut BTerm) -> TurnState {
             VirtualKeyCode::Up | VirtualKeyCode::Numpad8 | VirtualKeyCode::K => {
                 try_move_player(0, -1, ecs)
             }
+            // Diagonal movement
+            VirtualKeyCode::Numpad1 | VirtualKeyCode::B => try_move_player(-1, 1, ecs),
+            VirtualKeyCode::Numpad3 | VirtualKeyCode::N => try_move_player(1, 1, ecs),
+            VirtualKeyCode::Numpad7 | VirtualKeyCode::Y => try_move_player(-1, -1, ecs),
+            VirtualKeyCode::Numpad9 | VirtualKeyCode::U => try_move_player(1, -1, ecs),
             _ => TurnState::Paused,
         },
     }

@@ -28,6 +28,7 @@ impl<'a> System<'a> for MonsterAISystem {
                 if distance < 1.5 {
                     // TODO: Attack!
                     console::log(format!("{} spits at you.", name.name));
+                    return;
                 } else {
                     // Chase player
                     let path = a_star_search(

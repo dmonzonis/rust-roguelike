@@ -146,18 +146,34 @@ impl BaseMap for Map {
     fn get_available_exits(&self, origin: usize) -> Vec<(usize, f32)> {
         let origin = self.index_to_point2d(origin);
         let mut exits: Vec<(usize, f32)> = Vec::new();
-        let directions = [
+        let orthogonal = [
             Point { x: 1, y: 0 },
             Point { x: -1, y: 0 },
             Point { x: 0, y: 1 },
             Point { x: 0, y: -1 },
         ];
-        for dir in directions.iter() {
+        let diagonal = [
+            Point { x: 1, y: 1 },
+            Point { x: -1, y: -1 },
+            Point { x: -1, y: 1 },
+            Point { x: 1, y: -1 },
+        ];
+        // Orthogonal movement costs 1
+        for dir in orthogonal.iter() {
             let new_pos = origin + *dir;
             let new_pos_idx = self.point2d_to_index(new_pos);
             if self.in_bounds(new_pos) && !self.blocked[new_pos_idx] {
                 // For now, all tiles have cost 1
                 exits.push((new_pos_idx, 1.0));
+            }
+        }
+        // Diagonal movement costs ~sqrt(2)
+        for dir in diagonal.iter() {
+            let new_pos = origin + *dir;
+            let new_pos_idx = self.point2d_to_index(new_pos);
+            if self.in_bounds(new_pos) && !self.blocked[new_pos_idx] {
+                // For now, all tiles have cost 1
+                exits.push((new_pos_idx, 1.4142));
             }
         }
         exits
