@@ -5,53 +5,21 @@ use specs::prelude::*;
 extern crate specs_derive;
 
 mod components;
+mod drunkard_system;
 mod map;
+mod render;
 mod room;
 mod visibility_system;
 
 use crate::components::*;
+use crate::drunkard_system::DrunkardSystem;
 use crate::map::{Map, TileType};
+use crate::render::{draw_entities, draw_map};
 use crate::visibility_system::VisibilitySystem;
 
 const CONSOLE_WIDTH: i32 = 80;
 const CONSOLE_HEIGHT: i32 = 50;
 const TILE_SIZE: i32 = 16;
-
-// Systems
-
-/// System that makes entities with Drunkard component move randomly each turn
-struct DrunkardSystem {}
-
-impl<'a> System<'a> for DrunkardSystem {
-    type SystemData = (
-        ReadExpect<'a, Map>,
-        ReadStorage<'a, Drunkard>,
-        WriteStorage<'a, Position>,
-    );
-
-    fn run(&mut self, (map, drunk, mut pos): Self::SystemData) {
-        let mut rng = RandomNumberGenerator::new();
-        let directions = [
-            Position { x: 1, y: 0 },
-            Position { x: -1, y: 0 },
-            Position { x: 0, y: 1 },
-            Position { x: 0, y: -1 },
-        ];
-        for (_drunk, pos) in (&drunk, &mut pos).join() {
-            // Pick a random direction and move in that direction if possible
-            let dir = rng.random_slice_entry(&directions).unwrap();
-            // TODO: This next part is pretty similar to try_move_player; refactor to avoid duplicate code
-            let new_pos = Position {
-                x: pos.x + dir.x,
-                y: pos.y + dir.y,
-            };
-            let new_pos_idx = map.xy_idx(new_pos.x, new_pos.y);
-            if map.tiles[new_pos_idx] != TileType::Wall {
-                *pos = new_pos;
-            }
-        }
-    }
-}
 
 // Other functions
 
@@ -67,9 +35,19 @@ fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> bool {
             y: pos.y + dy,
         };
         let new_pos_idx = map.xy_idx(new_pos.x, new_pos.y);
-        if map.tiles[new_pos_idx] != TileType::Wall {
+        if map.tiles[new_pos_idx] != TileType::Wall
+            && map.in_bounds(Point::new(new_pos.x, new_pos.y))
+        {
             *pos = new_pos;
             success = true;
+        }
+    }
+
+    // If the player moved, we need to recompute FOV
+    if success {
+        let mut visions = ecs.write_storage::<Vision>();
+        for (vision, _player) in (&mut visions, &players).join() {
+            vision.recompute = true;
         }
     }
     success
@@ -90,38 +68,6 @@ fn player_input(ecs: &mut World, ctx: &mut BTerm) -> bool {
     }
 }
 
-fn draw_map(ecs: &World, ctx: &mut BTerm) {
-    let visions = ecs.read_storage::<Vision>();
-    let players = ecs.read_storage::<Player>();
-    let map = ecs.fetch::<Map>();
-
-    for (_player, vision) in (&players, &visions).join() {
-        for (idx, tile) in map.tiles.iter().enumerate() {
-            let (x, y) = map.idx_xy(idx);
-            let point = Point::new(x, y);
-            if vision.visible.contains(&point) {
-                match tile {
-                    TileType::Floor => {
-                        ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('.'));
-                    }
-                    TileType::Wall => {
-                        ctx.set(x, y, RGB::named(WHITE), RGB::named(BLACK), to_cp437('#'));
-                    }
-                }
-            } else if map.explored[idx] {
-                match tile {
-                    TileType::Floor => {
-                        ctx.set(x, y, RGB::named(DARK_BLUE), RGB::named(BLACK), to_cp437('.'));
-                    }
-                    TileType::Wall => {
-                        ctx.set(x, y, RGB::named(DARK_BLUE), RGB::named(BLACK), to_cp437('#'));
-                    }
-                }
-            }
-        }
-    }
-}
-
 // Main game state
 
 struct State {
@@ -130,10 +76,8 @@ struct State {
 
 impl State {
     fn run_systems(&mut self) {
-        let mut visibility_system = VisibilitySystem {};
-        visibility_system.run_now(&self.ecs);
-        let mut drunkard_system = DrunkardSystem {};
-        drunkard_system.run_now(&self.ecs);
+        VisibilitySystem {}.run_now(&self.ecs);
+        DrunkardSystem {}.run_now(&self.ecs);
         // Apply now all changes to the ECS that may be queued from running the systems
         self.ecs.maintain();
     }
@@ -152,13 +96,7 @@ impl GameState for State {
 
         // Render stuff
         draw_map(&self.ecs, ctx);
-
-        let positions = self.ecs.read_storage::<Position>();
-        let renderables = self.ecs.read_storage::<Renderable>();
-
-        for (pos, renderable) in (&positions, &renderables).join() {
-            ctx.set(pos.x, pos.y, renderable.fg, renderable.bg, renderable.glyph);
-        }
+        draw_entities(&self.ecs, ctx);
     }
 }
 
@@ -205,32 +143,32 @@ fn main() {
         .with(Vision {
             visible: Vec::new(),
             range: 8,
+            recompute: true,
         })
         .build();
 
-    // Create some drunkards
-    let mut rng = RandomNumberGenerator::new();
-    let width;
-    let height;
+    // Create some drunkards in rooms other than the first one (where the player spawns)
+    let rooms;
     {
         let map = gs.ecs.fetch::<Map>();
-        width = map.width;
-        height = map.height;
+        rooms = map.rooms.clone();
     }
-    for _i in 0..4 {
-        let x = rng.range(0, width - 1);
-        let y = rng.range(0, height - 1);
+    for room in rooms.iter().skip(1) {
+        let pos = room.center();
         gs.ecs
             .create_entity()
-            .with(Position { x, y })
+            .with(Position { x: pos.0, y: pos.1 })
             .with(Renderable {
                 glyph: to_cp437('D'),
-                fg: RGB::named(RED),
+                fg: RGB::named(DARK_GREEN),
                 bg: RGB::named(BLACK),
             })
             .with(Drunkard {})
             .build();
     }
+
+    // Run some systems that need to be run before the first turn
+    VisibilitySystem {}.run_now(&gs.ecs);
 
     main_loop(context, gs);
 }

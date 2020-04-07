@@ -15,6 +15,7 @@ pub struct Map {
     pub width: i32,
     pub height: i32,
     pub explored: Vec<bool>,
+    pub visible: Vec<bool>,
 }
 
 impl Map {
@@ -25,7 +26,8 @@ impl Map {
             rooms: Vec::new(),
             width,
             height,
-            explored: vec![false; total_size]
+            explored: vec![false; total_size],
+            visible: vec![false; total_size]
         };
 
         let mut rooms: Vec<Room> = Vec::new();
@@ -38,8 +40,8 @@ impl Map {
         for _ in 0..MAX_ROOMS {
             let width = rng.range(MIN_SIZE, MAX_SIZE);
             let height = rng.range(MIN_SIZE, MAX_SIZE);
-            let x = rng.range(0, map.width - width - 1);
-            let y = rng.range(0, map.height - height - 1);
+            let x = rng.range(1, map.width - width - 2);
+            let y = rng.range(1, map.height - height - 2);
             let room = Room::new(x, y, width, height);
             let mut valid = true;
             for other_room in rooms.iter() {

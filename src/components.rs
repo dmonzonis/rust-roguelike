@@ -27,4 +27,5 @@ pub struct Drunkard {}
 pub struct Vision {
     pub visible: Vec<Point>,
     pub range: i32,
+    pub recompute: bool,
 }

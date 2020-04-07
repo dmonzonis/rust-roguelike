@@ -1,4 +1,5 @@
 /// For now a room is just a rectangle
+#[derive(Copy, Clone, PartialEq)]
 pub struct Room {
     pub x0: i32,
     pub y0: i32,
