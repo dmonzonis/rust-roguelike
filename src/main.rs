@@ -23,8 +23,9 @@ const TILE_SIZE: i32 = 16;
 
 // Other functions
 
-/// Try moving players by the given diff and return whether the move was successful or not
-fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> bool {
+/// Try moving players by the given diff and return the new turn state (Running if the
+/// player turn was successful or Paused if no turn was taken)
+fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> TurnState {
     let mut success = false;
     let map = ecs.fetch::<Map>();
     let mut positions = ecs.write_storage::<Position>();
@@ -49,26 +50,41 @@ fn try_move_player(dx: i32, dy: i32, ecs: &mut World) -> bool {
         for (vision, _player) in (&mut visions, &players).join() {
             vision.recompute = true;
         }
+        return TurnState::Running;
     }
-    success
+    TurnState::Paused
 }
 
-/// Take player input and return whether a turn was taken or not
-fn player_input(ecs: &mut World, ctx: &mut BTerm) -> bool {
+/// Take player input and return the new turn state
+fn player_input(ecs: &mut World, ctx: &mut BTerm) -> TurnState {
     // Player movement
     match ctx.key {
-        None => false, // No key is being pressed
+        None => TurnState::Paused, // No key is being pressed
         Some(key) => match key {
-            VirtualKeyCode::Left => try_move_player(-1, 0, ecs),
-            VirtualKeyCode::Right => try_move_player(1, 0, ecs),
-            VirtualKeyCode::Down => try_move_player(0, 1, ecs),
-            VirtualKeyCode::Up => try_move_player(0, -1, ecs),
-            _ => false,
+            VirtualKeyCode::Left | VirtualKeyCode::Numpad4 | VirtualKeyCode::H => {
+                try_move_player(-1, 0, ecs)
+            }
+            VirtualKeyCode::Right | VirtualKeyCode::Numpad6 | VirtualKeyCode::L => {
+                try_move_player(1, 0, ecs)
+            }
+            VirtualKeyCode::Down | VirtualKeyCode::Numpad2 | VirtualKeyCode::J => {
+                try_move_player(0, 1, ecs)
+            }
+            VirtualKeyCode::Up | VirtualKeyCode::Numpad8 | VirtualKeyCode::K => {
+                try_move_player(0, -1, ecs)
+            }
+            _ => TurnState::Paused,
         },
     }
 }
 
 // Main game state
+
+#[derive(PartialEq, Copy, Clone)]
+enum TurnState {
+    Paused,
+    Running,
+}
 
 struct State {
     ecs: World,
@@ -87,10 +103,10 @@ impl GameState for State {
     fn tick(&mut self, ctx: &mut BTerm) {
         ctx.cls();
 
-        let turn_taken = player_input(&mut self.ecs, ctx);
+        let turn_state = player_input(&mut self.ecs, ctx);
 
         // Run systems
-        if turn_taken {
+        if turn_state == TurnState::Running {
             self.run_systems();
         }
 
