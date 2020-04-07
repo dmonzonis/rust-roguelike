@@ -70,6 +70,11 @@ impl ops::Mul<Position> for Position {
 }
 
 #[derive(Component)]
+pub struct Name {
+    pub name: String,
+}
+
+#[derive(Component)]
 pub struct Renderable {
     pub glyph: u8,
     pub fg: RGB,
@@ -82,7 +87,7 @@ pub struct Player {}
 /// Component for entities that can see things following a FOV algorithm
 #[derive(Component)]
 pub struct Vision {
-    pub visible: Vec<Point>,
+    pub visible: Vec<Position>,
     pub range: i32,
     pub recompute: bool,
 }

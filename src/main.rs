@@ -133,6 +133,7 @@ fn main() {
     // ECS setup
     // Register all components
     gs.ecs.register::<Position>();
+    gs.ecs.register::<Name>();
     gs.ecs.register::<Renderable>();
     gs.ecs.register::<Player>();
     gs.ecs.register::<Vision>();
@@ -148,6 +149,9 @@ fn main() {
     gs.ecs
         .create_entity()
         .with(player_pos)
+        .with(Name {
+            name: String::from("Hero"),
+        })
         .with(Renderable {
             glyph: to_cp437('@'),
             fg: RGB::named(YELLOW),
@@ -172,10 +176,18 @@ fn main() {
         gs.ecs
             .create_entity()
             .with(pos)
+            .with(Name {
+                name: String::from("Orc"),
+            })
             .with(Renderable {
                 glyph: to_cp437('o'),
                 fg: RGB::named(GREEN),
                 bg: RGB::named(BLACK),
+            })
+            .with(Vision {
+                visible: Vec::new(),
+                range: 8,
+                recompute: true,
             })
             .with(Monster {})
             .build();
